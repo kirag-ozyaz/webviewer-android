@@ -1,0 +1,251 @@
+# Полная установка компонентов сборки
+
+Пошаговая инструкция и автоматические скрипты для Windows **без Visual Studio**.
+
+> **Язык приложения — C#.** Java (JDK) нужна только сборщику Android, код на Java писать не надо.
+
+---
+
+## Быстрый старт (рекомендуется)
+
+| Действие | Файл | Описание |
+|----------|------|----------|
+| Установить всё | [`setup.bat`](../setup.bat) | Двойной клик или из cmd |
+| Установить + собрать APK | [`setup-and-build.bat`](../setup-and-build.bat) | Полный цикл |
+| Только сборка | [`build.bat`](../build.bat) | После setup |
+
+Из PowerShell:
+
+```powershell
+cd X:\Project\APK
+.\setup.ps1           # только установка
+.\setup.ps1 -Build    # установка + сборка APK
+```
+
+---
+
+## Что нужно до запуска setup
+
+Только **.NET 8 SDK** — ставится вручную один раз:
+
+1. https://dotnet.microsoft.com/download/dotnet/8.0  
+2. Проверка:
+
+```powershell
+dotnet --version
+# Ожидается: 8.0.x
+```
+
+Всё остальное `setup.bat` / `setup.ps1` ставит автоматически.
+
+---
+
+## Полный цикл установки (вручную)
+
+Если не используете bat-файлы — выполните команды по порядку.
+
+### Шаг 1. .NET 8 SDK
+
+Скачать и установить: https://dotnet.microsoft.com/download/dotnet/8.0
+
+```powershell
+dotnet --version
+```
+
+---
+
+### Шаг 2. MAUI Android workload
+
+```powershell
+dotnet workload install maui-android --skip-manifest-update
+```
+
+Если ошибка:
+
+```powershell
+dotnet workload repair
+dotnet workload install maui-android --skip-manifest-update
+```
+
+Проверка:
+
+```powershell
+dotnet workload list
+# должна быть строка: maui-android
+```
+
+> Не ставьте полный `maui` — он тянет iOS и часто падает на Windows.
+
+---
+
+### Шаг 3. JDK 17 (Microsoft OpenJDK)
+
+**Через winget (как в setup.ps1):**
+
+```powershell
+winget install Microsoft.OpenJDK.17 `
+    --accept-package-agreements `
+    --accept-source-agreements
+```
+
+**Или в одну строку для cmd:**
+
+```cmd
+winget install Microsoft.OpenJDK.17 --accept-package-agreements --accept-source-agreements
+```
+
+**Или вручную:** https://learn.microsoft.com/java/openjdk/download
+
+Проверка (путь может немного отличаться):
+
+```powershell
+& "C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot\bin\java.exe" -version
+```
+
+---
+
+### Шаг 4. Android SDK (cmdline-tools + API 34)
+
+Папка SDK по умолчанию:
+
+```
+%LOCALAPPDATA%\Android\Sdk
+```
+
+#### 4.1. Скачать cmdline-tools
+
+```powershell
+$sdkRoot = "$env:LOCALAPPDATA\Android\Sdk"
+$zipPath = "$env:TEMP\cmdline-tools.zip"
+$url = "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip"
+
+New-Item -ItemType Directory -Force -Path $sdkRoot | Out-Null
+Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+
+$extract = "$env:TEMP\android-cmdline"
+Remove-Item $extract -Recurse -Force -ErrorAction SilentlyContinue
+tar -xf $zipPath -C $extract
+
+New-Item -ItemType Directory -Force -Path "$sdkRoot\cmdline-tools\latest" | Out-Null
+Copy-Item "$extract\cmdline-tools\*" "$sdkRoot\cmdline-tools\latest\" -Recurse -Force
+```
+
+#### 4.2. Установить платформу и build-tools
+
+```powershell
+$env:JAVA_HOME = (Get-Item "C:\Program Files\Microsoft\jdk-17*").FullName
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$sdkmanager = "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat"
+
+echo y | & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+```
+
+Проверка:
+
+```powershell
+Test-Path "$env:LOCALAPPDATA\Android\Sdk\platforms\android-34"
+Test-Path "$env:LOCALAPPDATA\Android\Sdk\build-tools\34.0.0"
+```
+
+---
+
+### Шаг 5. Переменные окружения (постоянно)
+
+```powershell
+$javaHome = (Get-Item "C:\Program Files\Microsoft\jdk-17*").FullName
+$androidHome = "$env:LOCALAPPDATA\Android\Sdk"
+
+[System.Environment]::SetEnvironmentVariable("JAVA_HOME", $javaHome, "User")
+[System.Environment]::SetEnvironmentVariable("ANDROID_HOME", $androidHome, "User")
+[System.Environment]::SetEnvironmentVariable("ANDROID_SDK_ROOT", $androidHome, "User")
+```
+
+Добавить в **PATH** (Параметры Windows → Переменные среды → Path → User):
+
+```
+%LOCALAPPDATA%\Android\Sdk\platform-tools
+%JAVA_HOME%\bin
+```
+
+Перезапустите терминал.
+
+---
+
+### Шаг 6. Сборка APK
+
+```powershell
+cd X:\Project\APK\WebViewer
+.\build.ps1
+```
+
+Или из корня:
+
+```cmd
+build.bat
+```
+
+APK:
+
+```
+WebViewer\bin\Release\net8.0-android\com.companyname.webviewer-Signed.apk
+```
+
+---
+
+## Скрипты проекта
+
+| Файл | Назначение |
+|------|------------|
+| `setup.bat` | Запуск `setup.ps1` (удобно двойным кликом) |
+| `setup.ps1` | Полная автоматическая установка |
+| `setup-and-build.bat` | setup + сборка APK |
+| `build.bat` | Только сборка |
+| `WebViewer/build.ps1` | Сборка с авто-поиском JDK/SDK |
+| `scripts/common.ps1` | Общие функции (JAVA_HOME, ANDROID_HOME) |
+
+### Параметры setup.ps1
+
+```powershell
+.\setup.ps1                  # установить всё
+.\setup.ps1 -Build           # установить и собрать APK
+.\setup.ps1 -SkipWorkload    # пропустить maui-android
+.\setup.ps1 -SkipJdk         # пропустить OpenJDK
+.\setup.ps1 -SkipAndroidSdk  # пропустить Android SDK
+```
+
+---
+
+## Чеклист после установки
+
+```powershell
+dotnet --version
+dotnet workload list
+java -version
+echo $env:JAVA_HOME
+echo $env:ANDROID_HOME
+Test-Path "$env:LOCALAPPDATA\Android\Sdk\platforms\android-34"
+```
+
+Все пункты должны быть OK.
+
+---
+
+## Частые ошибки
+
+| Ошибка | Решение |
+|--------|---------|
+| `dotnet` не найден | Установите .NET 8 SDK (шаг 1) |
+| `XA5300` Java SDK | Запустите `setup.bat` или шаг 3 |
+| `XA5300` Android SDK | Запустите `setup.bat` или шаг 4 |
+| API level lower than 34 | `sdkmanager "platforms;android-34"` |
+| `winget` не найден | Установите «App Installer» из Microsoft Store |
+| `maui` падает на iOS | Используйте только `maui-android` |
+
+---
+
+## Связанные документы
+
+| Файл | Содержание |
+|------|------------|
+| [DEPENDENCIES.md](DEPENDENCIES.md) | Список библиотек и компонентов |
+| [BUILD_WITHOUT_VS.md](BUILD_WITHOUT_VS.md) | Сборка, установка на телефон, ошибки |
