@@ -1,4 +1,4 @@
-# Сборка WebViewer APK для Android
+﻿# Сборка WebViewer APK для Android
 # Требуется: setup.bat (один раз) или docs/SETUP.md
 
 $ErrorActionPreference = "Stop"

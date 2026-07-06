@@ -1,4 +1,4 @@
-# Проверка компонентов сборки (без установки)
+﻿# Проверка компонентов сборки (без установки)
 # Запуск: .\scripts\verify-environment.ps1
 
 $ErrorActionPreference = "Stop"

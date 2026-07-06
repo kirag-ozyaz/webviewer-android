@@ -1,4 +1,4 @@
-function Find-JdkHome {
+﻿function Find-JdkHome {
     $candidates = @(
         "${env:ProgramFiles}\Microsoft\jdk-17*",
         "${env:ProgramFiles}\Android\Android Studio\jbr",
@@ -131,9 +131,11 @@ function Save-UserEnvironment {
 
     $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
     $toAdd = @(
-        (Join-Path $AndroidHome "platform-tools"),
-        (Join-Path $JavaHome "bin")
+        (Join-Path $AndroidHome "platform-tools")
     )
+    if ($JavaHome) {
+        $toAdd += (Join-Path $JavaHome "bin")
+    }
 
     foreach ($entry in $toAdd) {
         if ($entry -and ($userPath -notlike "*$entry*")) {

@@ -1,4 +1,4 @@
-# Полная установка компонентов для сборки WebViewer (без Visual Studio)
+﻿# Полная установка компонентов для сборки WebViewer (без Visual Studio)
 # Запуск: .\setup.ps1
 #         .\setup.ps1 -Build   — установить всё и сразу собрать APK
 
