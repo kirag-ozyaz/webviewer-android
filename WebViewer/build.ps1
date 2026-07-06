@@ -16,11 +16,13 @@ Write-Host "ANDROID_HOME: $($envInfo.AndroidHome)"
 Write-Host "JAVA_HOME:    $($envInfo.JavaHome)"
 Write-Host ""
 
-Set-Location $projectRoot
-dotnet build -f net8.0-android -c Release
+$exitCode = Invoke-AndroidProjectBuild -ProjectRoot $projectRoot -Configuration Release
+if ($exitCode -ne 0) {
+    exit $exitCode
+}
 
-if ($LASTEXITCODE -eq 0) {
-    Write-Host ""
-    Write-Host "APK:" -ForegroundColor Green
-    Get-ChildItem "bin\Release\net8.0-android\*.apk" | ForEach-Object { Write-Host $_.FullName }
+Write-Host ""
+Write-Host "APK:" -ForegroundColor Green
+Get-ChildItem (Join-Path $projectRoot "bin\Release\net8.0-android\*.apk") | ForEach-Object {
+    Write-Host $_.FullName
 }

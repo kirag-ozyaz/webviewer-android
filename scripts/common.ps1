@@ -216,6 +216,85 @@ function Test-DotNet8 {
     return $defaultVersion
 }
 
+function Test-AsciiPath {
+    param([string]$Path)
+
+    foreach ($ch in $Path.ToCharArray()) {
+        if ([int][char]$ch -gt 127) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Show-NonAsciiPathAlert {
+    param([string]$Path)
+
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host " ПУТЬ ПРОЕКТА НЕ ПОДХОДИТ ДЛЯ ANDROID" -ForegroundColor Red
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host "Текущий путь: $Path"
+    Write-Host ""
+    Write-Host "Android SDK (aapt2) на Windows не работает с кириллицей и другими не-ASCII символами в пути."
+    Write-Host "Из-за этого появляется ошибка APT2000 (assets)."
+    Write-Host ""
+    Write-Host "Решения:" -ForegroundColor Yellow
+    Write-Host "  1. Перенести проект, например: C:\Projects\APK_Webbrowser"
+    Write-Host "  2. Повторить сборку — build.ps1 попробует временную ASCII-папку автоматически"
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host ""
+}
+
+function Invoke-AndroidProjectBuild {
+    param(
+        [string]$ProjectRoot,
+        [string]$Configuration = "Release"
+    )
+
+    $projectRoot = (Resolve-Path -LiteralPath $ProjectRoot).ProviderPath
+    $repoRoot = Split-Path -Parent $projectRoot
+
+    if (Test-AsciiPath $projectRoot) {
+        Set-Location $projectRoot
+        & dotnet build -f net8.0-android -c $Configuration -m:1
+        return $LASTEXITCODE
+    }
+
+    Show-NonAsciiPathAlert -Path $projectRoot
+    Write-Host "Сборка через временную ASCII-папку..." -ForegroundColor Yellow
+
+    $shadowRoot = Join-Path $env:TEMP "webviewer-build"
+    if (Test-Path $shadowRoot) {
+        Remove-Item $shadowRoot -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Force -Path $shadowRoot | Out-Null
+    & robocopy $repoRoot $shadowRoot /E /XD bin obj .git /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
+    if ($LASTEXITCODE -ge 8) {
+        throw "Не удалось скопировать проект во временную папку: $shadowRoot"
+    }
+
+    $shadowProject = Join-Path $shadowRoot "WebViewer"
+    Push-Location $shadowProject
+    try {
+        & dotnet build -f net8.0-android -c $Configuration -m:1
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            $apkSrc = Join-Path $shadowProject "bin\$Configuration\net8.0-android"
+            $apkDst = Join-Path $projectRoot "bin\$Configuration\net8.0-android"
+            New-Item -ItemType Directory -Force -Path $apkDst | Out-Null
+            Copy-Item (Join-Path $apkSrc "*.apk") $apkDst -Force -ErrorAction SilentlyContinue
+            Write-Host "APK скопирован в: $apkDst" -ForegroundColor Green
+        }
+        return $exitCode
+    } finally {
+        Pop-Location
+        Remove-Item $shadowRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Test-MauiAndroidWorkload {
     $list = & dotnet workload list 2>$null | Out-String
     return $list -match "maui-android"

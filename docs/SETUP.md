@@ -150,12 +150,16 @@ Copy-Item "$extract\cmdline-tools\*" "$sdkRoot\cmdline-tools\latest\" -Recurse -
 `setup.ps1` записывает стандартные файлы лицензий в `%LOCALAPPDATA%\Android\Sdk\licenses` и затем вызывает `sdkmanager`.
 
 ```powershell
+$env:JAVA_HOME = (Get-Item "C:\Program Files\Microsoft\jdk-17*").FullName
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 $sdkmanager = "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat"
 
-$answers = 1..50 | ForEach-Object { "y" }
-$answers | & $sdkmanager --licenses
-$answers | & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+$licensesDir = "$env:ANDROID_HOME\licenses"
+New-Item -ItemType Directory -Force -Path $licensesDir | Out-Null
+Set-Content "$licensesDir\android-sdk-license" "24333f8a63b6825ea9c5514f83c2829b004d1fee" -NoNewline
+Set-Content "$licensesDir\android-sdk-preview-license" "84831b9409646a918e30173c6237ccde" -NoNewline
+
+& $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 ```
 
 Проверка:
@@ -260,6 +264,7 @@ Test-Path "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 | API level lower than 34 | Выполните шаг 4.2 и установите `platforms;android-34` |
 | `winget` не найден | Это не критично: `setup.ps1` попробует прямое скачивание |
 | `Accept? (y/N)` / license is not accepted | Примите лицензии через `sdkmanager --licenses` или повторно запустите обновлённый `setup.bat` |
+| `APT2000` / `assets` / кириллица в пути | Перенесите проект в путь только с латиницей, например `C:\Projects\APK_Webbrowser`. `build.bat` также попробует сборку через временную ASCII-папку |
 | `maui` падает на iOS | Используйте только `maui-android` |
 
 ---
