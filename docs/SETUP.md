@@ -147,8 +147,9 @@ Copy-Item "$extract\cmdline-tools\*" "$sdkRoot\cmdline-tools\latest\" -Recurse -
 
 #### 4.2. Принять лицензии и установить платформу
 
+`setup.ps1` записывает стандартные файлы лицензий в `%LOCALAPPDATA%\Android\Sdk\licenses` и затем вызывает `sdkmanager`.
+
 ```powershell
-$env:JAVA_HOME = (Get-Item "C:\Program Files\Microsoft\jdk-17*").FullName
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 $sdkmanager = "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat"
 

@@ -118,19 +118,7 @@ if (-not $SkipAndroidSdk) {
         }
 
         Write-Host "Принятие лицензий Android SDK..."
-        # sdkmanager ожидает отдельное подтверждение на каждую лицензию.
-        # Передаём много строк 'y', а не одну строку 'yyyy...'.
-        $licenseAnswers = 1..50 | ForEach-Object { "y" }
-        $licenseAnswers | & $sdkmanager --licenses 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "Не удалось принять лицензии Android SDK (код $LASTEXITCODE)"
-        }
-
-        Write-Host "Установка platform-tools, android-34, build-tools 34.0.0..."
-        $licenseAnswers | & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            throw "sdkmanager завершился с ошибкой $LASTEXITCODE"
-        }
+        Install-AndroidSdkPackages -SdkRoot $SdkRoot
     } else {
         Write-Host "Android SDK API 34 уже установлен"
     }

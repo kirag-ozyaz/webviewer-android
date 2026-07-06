@@ -221,6 +221,49 @@ function Test-MauiAndroidWorkload {
     return $list -match "maui-android"
 }
 
+function Accept-AndroidSdkLicenses {
+    param(
+        [string]$SdkRoot = (Join-Path $env:LOCALAPPDATA "Android\Sdk")
+    )
+
+    $licensesDir = Join-Path $SdkRoot "licenses"
+    New-Item -ItemType Directory -Force -Path $licensesDir | Out-Null
+
+    # Стандартные хэши лицензий Android SDK (используются в CI и Docker-образах Google).
+    $licenseFiles = @{
+        "android-sdk-license"             = "24333f8a63b6825ea9c5514f83c2829b004d1fee"
+        "android-sdk-preview-license"     = "84831b9409646a918e30173c6237ccde"
+        "android-googletv-license"        = "601085b94cd77f0b54ff86406957099ebe79c4c6"
+        "google-gdk-license"              = "33b6a2b64607f11b759f320ef9dff4ae5c47d5a5"
+        "intel-android-extra-license"     = "d975f751698a77b662f1254ddbeac390df846aa0"
+        "mips-android-sysimage-license"   = "e9acab5b5fbb560a72cfaecce894cb6f6bc8b82a"
+        "android-sdk-arm-dbt-license"     = "859f31769664b585750ebe337abede4a145c4ee334ab10638f1ade45b6e9aab8"
+    }
+
+    foreach ($entry in $licenseFiles.GetEnumerator()) {
+        Set-Content -Path (Join-Path $licensesDir $entry.Key) -Value $entry.Value -Encoding ascii -NoNewline
+    }
+}
+
+function Install-AndroidSdkPackages {
+    param(
+        [string]$SdkRoot = (Join-Path $env:LOCALAPPDATA "Android\Sdk")
+    )
+
+    $sdkmanager = Join-Path $SdkRoot "cmdline-tools\latest\bin\sdkmanager.bat"
+    if (-not (Test-Path $sdkmanager)) {
+        throw "sdkmanager не найден: $sdkmanager"
+    }
+
+    Accept-AndroidSdkLicenses -SdkRoot $SdkRoot
+
+    Write-Host "Установка platform-tools, android-34, build-tools 34.0.0..."
+    & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "sdkmanager завершился с ошибкой $LASTEXITCODE"
+    }
+}
+
 function Test-AndroidSdkReady {
     param([string]$SdkRoot = (Join-Path $env:LOCALAPPDATA "Android\Sdk"))
 
