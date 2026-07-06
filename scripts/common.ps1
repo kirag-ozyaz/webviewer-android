@@ -34,15 +34,186 @@ function Set-AndroidBuildEnvironment {
     }
 }
 
-function Test-DotNet8 {
-    $version = (& dotnet --version 2>$null)
-    if (-not $version) {
-        throw ".NET SDK не найден. Установите .NET 8: https://dotnet.microsoft.com/download/dotnet/8.0"
+function Get-DotNet8SdkVersion {
+    $sdks = & dotnet --list-sdks 2>$null
+    if (-not $sdks) { return $null }
+
+    foreach ($line in $sdks) {
+        if ($line -match '^(8\.\d+\.\d+)') {
+            return $Matches[1]
+        }
     }
-    if (-not $version.StartsWith("8.")) {
-        Write-Warning ".NET $version найден, рекомендуется .NET 8.x"
+
+    return $null
+}
+
+function Test-DotNet8Installed {
+    return [bool](Get-DotNet8SdkVersion)
+}
+
+function Refresh-DotNetPath {
+    $dotnetPath = Join-Path $env:ProgramFiles "dotnet"
+    if ((Test-Path $dotnetPath) -and ($env:Path -notlike "*$dotnetPath*")) {
+        $env:Path = "$dotnetPath;$env:Path"
+    }
+}
+
+function Test-WingetAvailable {
+    return [bool](Get-Command winget -ErrorAction SilentlyContinue)
+}
+
+function Show-ManualInstallAlert {
+    param(
+        [string]$ComponentName,
+        [string]$Url,
+        [string]$Details
+    )
+
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host " НЕ УДАЛОСЬ УСТАНОВИТЬ: $ComponentName" -ForegroundColor Red
+    Write-Host "========================================" -ForegroundColor Red
+    if ($Details) { Write-Host $Details }
+    Write-Host "Скачайте и установите вручную:" -ForegroundColor Yellow
+    Write-Host $Url
+    Write-Host "После установки перезапустите setup.bat" -ForegroundColor Yellow
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host ""
+}
+
+function Install-WindowsExe {
+    param(
+        [string]$InstallerPath,
+        [string[]]$Arguments
+    )
+
+    $proc = Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait -PassThru
+    if ($proc.ExitCode -notin 0, 3010) {
+        throw "Установщик завершился с кодом $($proc.ExitCode)"
+    }
+}
+
+function Install-DotNet8SdkDirect {
+    $meta = Invoke-RestMethod -Uri "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/8.0/releases.json" -UseBasicParsing
+    $version = $meta."latest-sdk"
+    if (-not $version) {
+        throw "Не удалось определить последнюю версию .NET 8 SDK"
+    }
+
+    $url = "https://builds.dotnet.microsoft.com/dotnet/Sdk/$version/dotnet-sdk-$version-win-x64.exe"
+    $installer = Join-Path $env:TEMP "dotnet-sdk-$version-win-x64.exe"
+
+    Write-Host "Скачивание .NET 8 SDK $version..."
+    Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
+    Write-Host "Запуск установщика..."
+    Install-WindowsExe -InstallerPath $installer -Arguments @("/install", "/quiet", "/norestart")
+}
+
+function Install-DotNet8Sdk {
+    $installed = $false
+
+    if (Test-WingetAvailable) {
+        Write-Host "Установка .NET 8 SDK через winget..."
+        & winget install Microsoft.DotNet.SDK.8 `
+            --accept-package-agreements `
+            --accept-source-agreements
+        if ($LASTEXITCODE -eq 0) {
+            $installed = $true
+        } else {
+            Write-Warning "winget не сработал, пробуем прямое скачивание..."
+        }
+    } else {
+        Write-Warning "winget не найден, скачиваем .NET 8 SDK напрямую..."
+    }
+
+    if (-not $installed) {
+        try {
+            Install-DotNet8SdkDirect
+        } catch {
+            Show-ManualInstallAlert `
+                -ComponentName ".NET 8 SDK" `
+                -Url "https://dotnet.microsoft.com/download/dotnet/8.0" `
+                -Details $_.Exception.Message
+            throw "Не удалось установить .NET 8 SDK автоматически"
+        }
+    }
+
+    Refresh-DotNetPath
+    $version = Get-DotNet8SdkVersion
+    if (-not $version) {
+        Show-ManualInstallAlert `
+            -ComponentName ".NET 8 SDK" `
+            -Url "https://dotnet.microsoft.com/download/dotnet/8.0" `
+            -Details ".NET 8 SDK установлен, но не найден в dotnet --list-sdks. Перезапустите терминал."
+        throw ".NET 8 SDK установлен, но не найден. Перезапустите терминал и запустите setup.ps1 снова."
     }
     return $version
+}
+
+function Install-OpenJdk17Direct {
+    $url = "https://aka.ms/download-jdk/microsoft-jdk-17-windows-x64.msi"
+    $installer = Join-Path $env:TEMP "microsoft-jdk-17.msi"
+
+    Write-Host "Скачивание Microsoft OpenJDK 17..."
+    Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
+    Write-Host "Запуск установщика..."
+    Install-WindowsExe -InstallerPath "msiexec.exe" -Arguments @("/i", $installer, "/quiet", "/norestart")
+}
+
+function Install-OpenJdk17 {
+    $installed = $false
+
+    if (Test-WingetAvailable) {
+        Write-Host "Установка через winget..."
+        & winget install Microsoft.OpenJDK.17 `
+            --accept-package-agreements `
+            --accept-source-agreements
+        if ($LASTEXITCODE -eq 0) {
+            $installed = $true
+        } else {
+            Write-Warning "winget не сработал, пробуем прямое скачивание..."
+        }
+    } else {
+        Write-Warning "winget не найден, скачиваем OpenJDK 17 напрямую..."
+    }
+
+    if (-not $installed) {
+        try {
+            Install-OpenJdk17Direct
+        } catch {
+            Show-ManualInstallAlert `
+                -ComponentName "Microsoft OpenJDK 17" `
+                -Url "https://learn.microsoft.com/java/openjdk/download" `
+                -Details $_.Exception.Message
+            throw "Не удалось установить Microsoft OpenJDK 17 автоматически"
+        }
+    }
+
+    $jdk = Find-JdkHome
+    if (-not $jdk) {
+        Show-ManualInstallAlert `
+            -ComponentName "Microsoft OpenJDK 17" `
+            -Url "https://learn.microsoft.com/java/openjdk/download" `
+            -Details "JDK установлен, но не найден в стандартных путях. Перезапустите терминал."
+        throw "JDK установлен, но не найден. Перезапустите терминал и запустите setup.ps1 снова."
+    }
+
+    return $jdk
+}
+
+function Test-DotNet8 {
+    $version8 = Get-DotNet8SdkVersion
+    if ($version8) {
+        return $version8
+    }
+
+    $defaultVersion = (& dotnet --version 2>$null)
+    if (-not $defaultVersion) {
+        throw ".NET SDK не найден. Установите .NET 8: https://dotnet.microsoft.com/download/dotnet/8.0"
+    }
+
+    Write-Warning ".NET $defaultVersion найден, но .NET 8 SDK отсутствует"
+    return $defaultVersion
 }
 
 function Test-MauiAndroidWorkload {
@@ -66,13 +237,17 @@ function Get-BuildEnvironmentStatus {
         [string]$SdkRoot = (Join-Path $env:LOCALAPPDATA "Android\Sdk")
     )
 
-    $dotnetVersion = $null
-    $dotnetOk = $false
-    try {
-        $dotnetVersion = Test-DotNet8
-        $dotnetOk = $dotnetVersion.StartsWith("8.")
-    } catch {
-        $dotnetVersion = $_.Exception.Message
+    $dotnetVersion = Get-DotNet8SdkVersion
+    $dotnetOk = [bool]$dotnetVersion
+    if (-not $dotnetOk) {
+        try {
+            $dotnetVersion = (& dotnet --version 2>$null)
+            if (-not $dotnetVersion) {
+                $dotnetVersion = "не найден"
+            }
+        } catch {
+            $dotnetVersion = $_.Exception.Message
+        }
     }
 
     $jdkHome = Find-JdkHome

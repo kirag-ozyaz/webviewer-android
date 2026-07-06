@@ -36,8 +36,19 @@ Write-Host "Корень проекта: $Root"
 
 # ---------------------------------------------------------------------------
 Write-Step "1/6 Проверка .NET 8 SDK"
-$dotnetVersion = Test-DotNet8
-Write-Host "dotnet $dotnetVersion"
+if (Test-DotNet8Installed) {
+    $dotnetVersion = Get-DotNet8SdkVersion
+    Write-Host ".NET 8 SDK: $dotnetVersion"
+} else {
+    $defaultDotnet = & dotnet --version 2>$null
+    if ($defaultDotnet) {
+        Write-Host "Найден .NET $defaultDotnet, устанавливаем .NET 8 SDK..."
+    } else {
+        Write-Host ".NET SDK не найден, устанавливаем .NET 8 SDK..."
+    }
+    $dotnetVersion = Install-DotNet8Sdk
+    Write-Host ".NET 8 SDK установлен: $dotnetVersion"
+}
 
 # ---------------------------------------------------------------------------
 if (-not $SkipWorkload) {
@@ -67,17 +78,7 @@ if (-not $SkipJdk) {
     if ($jdk) {
         Write-Host "JDK уже установлен: $jdk"
     } else {
-        Write-Host "Установка через winget..."
-        & winget install Microsoft.OpenJDK.17 `
-            --accept-package-agreements `
-            --accept-source-agreements
-        if ($LASTEXITCODE -ne 0) {
-            throw "winget не смог установить Microsoft.OpenJDK.17. Установите вручную: https://learn.microsoft.com/java/openjdk/download"
-        }
-        $jdk = Find-JdkHome
-        if (-not $jdk) {
-            throw "JDK установлен, но не найден. Перезапустите терминал и запустите setup.ps1 снова."
-        }
+        $jdk = Install-OpenJdk17
         Write-Host "JDK установлен: $jdk"
     }
     $env:JAVA_HOME = $jdk
@@ -116,9 +117,17 @@ if (-not $SkipAndroidSdk) {
             throw "JAVA_HOME не задан. Сначала установите JDK (шаг 3)."
         }
 
+        Write-Host "Принятие лицензий Android SDK..."
+        # sdkmanager ожидает отдельное подтверждение на каждую лицензию.
+        # Передаём много строк 'y', а не одну строку 'yyyy...'.
+        $licenseAnswers = 1..50 | ForEach-Object { "y" }
+        $licenseAnswers | & $sdkmanager --licenses 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Не удалось принять лицензии Android SDK (код $LASTEXITCODE)"
+        }
+
         Write-Host "Установка platform-tools, android-34, build-tools 34.0.0..."
-        $yes = "y" * 20
-        $yes | & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" 2>&1
+        $licenseAnswers | & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" 2>&1
         if ($LASTEXITCODE -ne 0) {
             throw "sdkmanager завершился с ошибкой $LASTEXITCODE"
         }

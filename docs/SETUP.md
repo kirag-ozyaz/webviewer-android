@@ -26,17 +26,17 @@ cd X:\Project\APK
 
 ## Что нужно до запуска setup
 
-Только **.NET 8 SDK** — ставится вручную один раз:
+Ничего обязательного вручную ставить не нужно.
 
-1. https://dotnet.microsoft.com/download/dotnet/8.0  
-2. Проверка:
+`setup.bat` / `setup.ps1` теперь умеет автоматически:
 
-```powershell
-dotnet --version
-# Ожидается: 8.0.x
-```
+- установить **.NET 8 SDK**
+- установить **Microsoft OpenJDK 17**
+- скачать **Android SDK cmdline-tools**
+- принять лицензии Android SDK
+- установить `platform-tools`, `platforms;android-34`, `build-tools;34.0.0`
 
-Всё остальное `setup.bat` / `setup.ps1` ставит автоматически.
+Если `winget` не сработает, скрипт попробует **прямое скачивание** официального установщика. Если и это не получится, он выведет заметное сообщение со ссылкой на ручную установку.
 
 ---
 
@@ -46,10 +46,19 @@ dotnet --version
 
 ### Шаг 1. .NET 8 SDK
 
-Скачать и установить: https://dotnet.microsoft.com/download/dotnet/8.0
+**Автоматически через `setup.ps1`:**
+
+- если .NET 8 уже установлен, скрипт использует его
+- если установлен только .NET 9 или другой SDK, скрипт доустановит **.NET 8 SDK**
+- если `winget` не сработает, будет использовано прямое скачивание официального установщика
+
+**Ручная установка:** https://dotnet.microsoft.com/download/dotnet/8.0
+
+Проверка:
 
 ```powershell
-dotnet --version
+dotnet --list-sdks
+# должна быть строка 8.0.x
 ```
 
 ---
@@ -80,7 +89,13 @@ dotnet workload list
 
 ### Шаг 3. JDK 17 (Microsoft OpenJDK)
 
-**Через winget (как в setup.ps1):**
+**Через `setup.ps1`:**
+
+- сначала установка через `winget`
+- если `winget` не сработает, скрипт скачает официальный MSI Microsoft OpenJDK 17
+- если автоустановка не получится, будет показана ссылка на ручную установку
+
+**Вручную через winget:**
 
 ```powershell
 winget install Microsoft.OpenJDK.17 `
@@ -130,20 +145,23 @@ New-Item -ItemType Directory -Force -Path "$sdkRoot\cmdline-tools\latest" | Out-
 Copy-Item "$extract\cmdline-tools\*" "$sdkRoot\cmdline-tools\latest\" -Recurse -Force
 ```
 
-#### 4.2. Установить платформу и build-tools
+#### 4.2. Принять лицензии и установить платформу
 
 ```powershell
 $env:JAVA_HOME = (Get-Item "C:\Program Files\Microsoft\jdk-17*").FullName
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 $sdkmanager = "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat"
 
-echo y | & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+$answers = 1..50 | ForEach-Object { "y" }
+$answers | & $sdkmanager --licenses
+$answers | & $sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 ```
 
 Проверка:
 
 ```powershell
 Test-Path "$env:LOCALAPPDATA\Android\Sdk\platforms\android-34"
+Test-Path "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 Test-Path "$env:LOCALAPPDATA\Android\Sdk\build-tools\34.0.0"
 ```
 
@@ -218,12 +236,13 @@ WebViewer\bin\Release\net8.0-android\com.companyname.webviewer-Signed.apk
 ## Чеклист после установки
 
 ```powershell
-dotnet --version
+dotnet --list-sdks
 dotnet workload list
 java -version
 echo $env:JAVA_HOME
 echo $env:ANDROID_HOME
 Test-Path "$env:LOCALAPPDATA\Android\Sdk\platforms\android-34"
+Test-Path "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 ```
 
 Все пункты должны быть OK.
@@ -234,11 +253,12 @@ Test-Path "$env:LOCALAPPDATA\Android\Sdk\platforms\android-34"
 
 | Ошибка | Решение |
 |--------|---------|
-| `dotnet` не найден | Установите .NET 8 SDK (шаг 1) |
+| `dotnet` не найден | Запустите `setup.bat`; если автоустановка не сработает, используйте ссылку из сообщения скрипта |
 | `XA5300` Java SDK | Запустите `setup.bat` или шаг 3 |
 | `XA5300` Android SDK | Запустите `setup.bat` или шаг 4 |
-| API level lower than 34 | `sdkmanager "platforms;android-34"` |
-| `winget` не найден | Установите «App Installer» из Microsoft Store |
+| API level lower than 34 | Выполните шаг 4.2 и установите `platforms;android-34` |
+| `winget` не найден | Это не критично: `setup.ps1` попробует прямое скачивание |
+| `Accept? (y/N)` / license is not accepted | Примите лицензии через `sdkmanager --licenses` или повторно запустите обновлённый `setup.bat` |
 | `maui` падает на iOS | Используйте только `maui-android` |
 
 ---
