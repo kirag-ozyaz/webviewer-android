@@ -20,7 +20,7 @@
 		<Nullable>enable</Nullable>
 
 		<!-- Display name -->
-		<ApplicationTitle>WebViewer</ApplicationTitle>
+		<ApplicationTitle>&#x041A;&#x0430;&#x0440;&#x0442;&#x0430; &#x0423;&#x043B;&#x044C;&#x0413;&#x042D;&#x0421;</ApplicationTitle>
 
 		<!-- App Identifier -->
 		<ApplicationId>com.companyname.webviewer</ApplicationId>
@@ -38,6 +38,11 @@
 
 		<!-- Путь к Android SDK (если не задан в ANDROID_HOME) -->
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' and Exists('$(LOCALAPPDATA)\Android\Sdk')">$(LOCALAPPDATA)\Android\Sdk</AndroidSdkDirectory>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+		<RunAOTCompilation>false</RunAOTCompilation>
+		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
 	</PropertyGroup>
 
 	<ItemGroup>

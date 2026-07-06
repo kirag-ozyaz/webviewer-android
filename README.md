@@ -76,6 +76,7 @@ webviewer-android/
 | [docs/SETUP.md](docs/SETUP.md) | Полная установка компонентов |
 | [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Зависимости и требования |
 | [docs/BUILD_WITHOUT_VS.md](docs/BUILD_WITHOUT_VS.md) | Сборка, установка на телефон, ошибки |
+| [docs/ANDROID_DEVICE_WORKFLOW.md](docs/ANDROID_DEVICE_WORKFLOW.md) | Подключение телефона, ADB, отладка, скриншоты и запись экрана |
 | [WebViewer/README.md](WebViewer/README.md) | Детали по коду приложения |
 
 ## CI

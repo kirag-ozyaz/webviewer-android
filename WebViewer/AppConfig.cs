@@ -6,7 +6,7 @@ public static class AppConfig
     /// Адрес сайта, который открывается при запуске приложения.
     /// Измените на нужный URL перед сборкой.
     /// </summary>
-    public const string StartUrl = "https://95.68.245.5:8338/lm";
+    public const string StartUrl = "https://95.68.245.5:8338/lm/";
 
     /// <summary>
     /// Игнорировать ошибки SSL-сертификата (самоподписанный, просроченный, неверное имя и т.п.).
