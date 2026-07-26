@@ -26,3 +26,7 @@ project.lock.json
 
 # Logs
 *.log
+
+# Игнорировать файлы с переменными окружения
+.env
+*.env.local
