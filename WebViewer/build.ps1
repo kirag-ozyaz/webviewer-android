@@ -73,16 +73,18 @@ Write-Host "JAVA_HOME:    $($envInfo.JavaHome)"
 Write-Host ""
 
 $exitCode = Invoke-AndroidProjectBuild -ProjectRoot $projectRoot -Configuration Release
-if ($exitCode -ne 0) {
-    # Проверьте, был ли APK создан несмотря на ошибку
-    $apkPath = "WebViewer\bin\Release\net8.0-android\*.apk"
-    if ((Get-ChildItem $apkPath -ErrorAction SilentlyContinue).Count -gt 0) {
-        Write-Host "⚠️  Сборка завершена с предупреждениями, но APK создан." -ForegroundColor Yellow
-        exit 0  # ← Успех
-    } else {
-        Write-Host "Ошибка сборки! Код: $exitCode" -ForegroundColor Red
-        exit $exitCode
-    }
+
+# Проверьте, был ли APK создан (независимо от exit code)
+$apkPath = Join-Path $projectRoot "bin\Release\net8.0-android"
+$apkFiles = Get-ChildItem -Path $apkPath -Filter "*.apk" -ErrorAction SilentlyContinue
+
+if ($apkFiles.Count -gt 0) {
+    # APK создан - это успех, даже если есть warnings
+    Write-Host "✓ APK создан успешно!" -ForegroundColor Green
+} else {
+    # APK не создан - это реальная ошибка
+    Write-Host "✗ Ошибка сборки! APK не создан. Код: $exitCode" -ForegroundColor Red
+    exit 1
 }
 
 Write-Host ""
@@ -91,61 +93,60 @@ Write-Host "APK:" -ForegroundColor Green
 # ==========================================
 # Поиск и переименование APK с правильной обработкой
 # ==========================================
-$apkPath = Join-Path $projectRoot "bin\Release\net8.0-android"
 $apkOutputFileName = "map_ulges.apk"
 $targetPath = Join-Path $apkPath $apkOutputFileName
 
-# Убедимся, что папка существует
-if (-not (Test-Path $apkPath)) {
-    Write-Error "Папка APK не найдена: $apkPath"
-    exit 1
-}
+# # Убедимся, что папка существует
+# if (-not (Test-Path $apkPath)) {
+#     Write-Error "Папка APK не найдена: $apkPath"
+#     exit 1
+# }
 
-# Ищем все .apk файлы
-$apkFiles = Get-ChildItem -Path $apkPath -Filter "*.apk" -ErrorAction SilentlyContinue
+# # Ищем все .apk файлы
+# $apkFiles = Get-ChildItem -Path $apkPath -Filter "*.apk" -ErrorAction SilentlyContinue
 
-if ($apkFiles.Count -eq 0) {
-    Write-Error "APK файлы не найдены в: $apkPath"
-    exit 1
-}
+# if ($apkFiles.Count -eq 0) {
+#     Write-Error "APK файлы не найдены в: $apkPath"
+#     exit 1
+# }
 
-Write-Host "Найдено файлов: $($apkFiles.Count)" -ForegroundColor DarkGray
+# Write-Host "Найдено файлов: $($apkFiles.Count)" -ForegroundColor DarkGray
 
-foreach ($apk in $apkFiles) {
-    Write-Host "  Исходный: $($apk.Name)" -ForegroundColor DarkGray
+# foreach ($apk in $apkFiles) {
+#     Write-Host "  Исходный: $($apk.Name)" -ForegroundColor DarkGray
     
-    # Если это уже целевое имя - пропускаем
-    if ($apk.Name -eq $apkOutputFileName) {
-        Write-Host "  ✓ Уже имеет правильное имя: $($apk.Name)" -ForegroundColor Green
-        continue
-    }
+#     # Если это уже целевое имя - пропускаем
+#     if ($apk.Name -eq $apkOutputFileName) {
+#         Write-Host "  ✓ Уже имеет правильное имя: $($apk.Name)" -ForegroundColor Green
+#         continue
+#     }
     
-    # Удаляем старый целевой файл если существует
-    if (Test-Path $targetPath) {
-        try {
-            Remove-Item -Path $targetPath -Force -ErrorAction Stop
-            Write-Host "  Удален старый файл: $apkOutputFileName" -ForegroundColor DarkGray
-        } catch {
-            Write-Warning "Не удалось удалить: $($_.Exception.Message)"
-        }
-    }
+#     # Удаляем старый целевой файл если существует
+#     if (Test-Path $targetPath) {
+#         try {
+#             Remove-Item -Path $targetPath -Force -ErrorAction Stop
+#             Write-Host "  Удален старый файл: $apkOutputFileName" -ForegroundColor DarkGray
+#         } catch {
+#             Write-Warning "Не удалось удалить: $($_.Exception.Message)"
+#         }
+#     }
     
-    # Переименовываем текущий файл
-    try {
-        Rename-Item -Path $apk.FullName -NewName $apkOutputFileName -Force -ErrorAction Stop
-        Write-Host "  ✓ Переименован: $($apk.Name) → $apkOutputFileName" -ForegroundColor Green
-    } catch {
-        Write-Error "Ошибка переименования: $($_.Exception.Message)"
-        exit 1
-    }
-}
+#     # Переименовываем текущий файл
+#     try {
+#         Rename-Item -Path $apk.FullName -NewName $apkOutputFileName -Force -ErrorAction Stop
+#         Write-Host "  ✓ Переименован: $($apk.Name) → $apkOutputFileName" -ForegroundColor Green
+#     } catch {
+#         Write-Error "Ошибка переименования: $($_.Exception.Message)"
+#         exit 1
+#     }
+# }
 
-# Выводим финальный результат
-$finalApk = Get-ChildItem -Path $apkPath -Filter $apkOutputFileName -ErrorAction SilentlyContinue
-if ($finalApk) {
-    Write-Host "Финальный APK:" -ForegroundColor Green
-    Write-Host $finalApk.FullName -ForegroundColor Cyan
-} else {
-    Write-Error "Финальный APK не найден: $targetPath"
-    exit 1
-}
+# # Выводим финальный результат
+# $finalApk = Get-ChildItem -Path $apkPath -Filter $apkOutputFileName -ErrorAction SilentlyContinue
+# if ($finalApk) {
+#     Write-Host "Финальный APK:" -ForegroundColor Green
+#     Write-Host $finalApk.FullName -ForegroundColor Cyan
+# } else {
+#     Write-Error "Финальный APK не найден: $targetPath"
+#     exit 1
+# }
