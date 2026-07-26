@@ -74,23 +74,71 @@ Write-Host ""
 
 $exitCode = Invoke-AndroidProjectBuild -ProjectRoot $projectRoot -Configuration Release
 if ($exitCode -ne 0) {
+    Write-Host "Ошибка сборки! Код: $exitCode" -ForegroundColor Red
     exit $exitCode
 }
 
 Write-Host ""
 Write-Host "APK:" -ForegroundColor Green
-Get-ChildItem (Join-Path $projectRoot "bin\Release\net8.0-android\*.apk") | ForEach-Object {
-    Write-Host $_.FullName
+
+# ==========================================
+# Поиск и переименование APK с правильной обработкой
+# ==========================================
+$apkPath = Join-Path $projectRoot "bin\Release\net8.0-android"
+$apkOutputFileName = "map_ulges.apk"
+$targetPath = Join-Path $apkPath $apkOutputFileName
+
+# Убедимся, что папка существует
+if (-not (Test-Path $apkPath)) {
+    Write-Error "Папка APK не найдена: $apkPath"
+    exit 1
 }
 
-$apkFiles = Get-ChildItem (Join-Path $projectRoot "bin\Release\net8.0-android\*.apk")
-$apkOutputFileName = "map_ulges.apk"
-if ($apkFiles.Count -gt 0) {
-    foreach ($apk in $apkFiles) {
-        $targetName = Join-Path (Split-Path $apk.FullName) $apkOutputFileName
-        if ($apk.FullName -ne $targetName) {
-            Copy-Item -Path $apk.FullName -Destination $targetName -Force
-            Write-Host "✓ Переименован: $($apk.Name) → $apkOutputFileName" -ForegroundColor Green
+# Ищем все .apk файлы
+$apkFiles = Get-ChildItem -Path $apkPath -Filter "*.apk" -ErrorAction SilentlyContinue
+
+if ($apkFiles.Count -eq 0) {
+    Write-Error "APK файлы не найдены в: $apkPath"
+    exit 1
+}
+
+Write-Host "Найдено файлов: $($apkFiles.Count)" -ForegroundColor DarkGray
+
+foreach ($apk in $apkFiles) {
+    Write-Host "  Исходный: $($apk.Name)" -ForegroundColor DarkGray
+    
+    # Если это уже целевое имя - пропускаем
+    if ($apk.Name -eq $apkOutputFileName) {
+        Write-Host "  ✓ Уже имеет правильное имя: $($apk.Name)" -ForegroundColor Green
+        continue
+    }
+    
+    # Удаляем старый целевой файл если существует
+    if (Test-Path $targetPath) {
+        try {
+            Remove-Item -Path $targetPath -Force -ErrorAction Stop
+            Write-Host "  Удален старый файл: $apkOutputFileName" -ForegroundColor DarkGray
+        } catch {
+            Write-Warning "Не удалось удалить: $($_.Exception.Message)"
         }
     }
+    
+    # Переименовываем текущий файл
+    try {
+        Rename-Item -Path $apk.FullName -NewName $apkOutputFileName -Force -ErrorAction Stop
+        Write-Host "  ✓ Переименован: $($apk.Name) → $apkOutputFileName" -ForegroundColor Green
+    } catch {
+        Write-Error "Ошибка переименования: $($_.Exception.Message)"
+        exit 1
+    }
+}
+
+# Выводим финальный результат
+$finalApk = Get-ChildItem -Path $apkPath -Filter $apkOutputFileName -ErrorAction SilentlyContinue
+if ($finalApk) {
+    Write-Host "Финальный APK:" -ForegroundColor Green
+    Write-Host $finalApk.FullName -ForegroundColor Cyan
+} else {
+    Write-Error "Финальный APK не найден: $targetPath"
+    exit 1
 }
