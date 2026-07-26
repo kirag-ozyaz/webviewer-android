@@ -30,6 +30,13 @@ if errorlevel 1 (
 :: 3. Сборка APK
 echo.
 echo [2/3] Сборка проекта...
+
+:: Удалите старый APK перед сборкой
+if exist "WebViewer\bin\Release\net8.0-android\*.apk" (
+    del "WebViewer\bin\Release\net8.0-android\*.apk"
+    echo Удалили старые APK
+)
+
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0WebViewer\build.ps1"
 
 if errorlevel 1 (

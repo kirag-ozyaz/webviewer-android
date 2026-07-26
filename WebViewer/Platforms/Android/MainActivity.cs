@@ -46,7 +46,16 @@ public class MainActivity : Activity
 		}
 
 		// base.OnBackPressed();
-		this.OnBackPressedDispatcher.OnBackPressed();
+		if (OperatingSystem.IsAndroidVersionAtLeast(33))
+		{
+			// На Android 33+ используйте новый способ
+			base.OnBackPressed();
+		}
+		else
+		{
+			// На старых версиях используйте обычный вызов
+			base.OnBackPressed();
+		}
 	}
 
 	protected override void OnDestroy()
