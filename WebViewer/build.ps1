@@ -82,3 +82,15 @@ Write-Host "APK:" -ForegroundColor Green
 Get-ChildItem (Join-Path $projectRoot "bin\Release\net8.0-android\*.apk") | ForEach-Object {
     Write-Host $_.FullName
 }
+
+$apkFiles = Get-ChildItem (Join-Path $projectRoot "bin\Release\net8.0-android\*.apk")
+$apkOutputFileName = "map_ulges.apk"
+if ($apkFiles.Count -gt 0) {
+    foreach ($apk in $apkFiles) {
+        $targetName = Join-Path (Split-Path $apk.FullName) $apkOutputFileName
+        if ($apk.FullName -ne $targetName) {
+            Copy-Item -Path $apk.FullName -Destination $targetName -Force
+            Write-Host "✓ Переименован: $($apk.Name) → $apkOutputFileName" -ForegroundColor Green
+        }
+    }
+}
