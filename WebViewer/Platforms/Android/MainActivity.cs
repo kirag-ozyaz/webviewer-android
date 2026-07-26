@@ -45,7 +45,8 @@ public class MainActivity : Activity
 			return;
 		}
 
-		base.OnBackPressed();
+		// base.OnBackPressed();
+		this.OnBackPressedDispatcher.OnBackPressed();
 	}
 
 	protected override void OnDestroy()

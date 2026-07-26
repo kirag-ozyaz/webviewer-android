@@ -70,15 +70,19 @@ public partial class IgnoreSslWebViewHandler : WebViewHandler
 			if (request?.IsForMainFrame != true)
 				return;
 
-			var description = error?.Description ?? "Неизвестная ошибка";
-			MainThread.BeginInvokeOnMainThread(async () =>
+			// Проверка версии Android перед использованием OnReceivedError и Description
+			if (OperatingSystem.IsAndroidVersionAtLeast(23))
 			{
-				if (_handler.VirtualView is Microsoft.Maui.Controls.WebView webView &&
-				    webView.Window?.Page is Page page)
+				var description = error?.Description ?? "Неизвестная ошибка";
+				MainThread.BeginInvokeOnMainThread(async () =>
 				{
-					await page.DisplayAlert("Ошибка загрузки", description, "OK");
-				}
-			});
+					if (_handler.VirtualView is Microsoft.Maui.Controls.WebView webView &&
+						webView.Window?.Page is Page page)
+					{
+						await page.DisplayAlert("Ошибка загрузки", description, "OK");
+					}
+				});
+			}
 		}
 	}
 }
