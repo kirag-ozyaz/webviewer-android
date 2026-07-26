@@ -29,4 +29,8 @@ project.lock.json
 
 # Игнорировать файлы с переменными окружения
 .env
-*.env.local
+*.env.*
+*.env
+
+# Автогенерируемые файлы
+GeneratedConfig.cs

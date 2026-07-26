@@ -38,6 +38,8 @@
 
 		<!-- Путь к Android SDK (если не задан в ANDROID_HOME) -->
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' and Exists('$(LOCALAPPDATA)\Android\Sdk')">$(LOCALAPPDATA)\Android\Sdk</AndroidSdkDirectory>
+		<!-- Name APK File -->
+		<AndroidPackageFileName>map_ulges.apk</AndroidPackageFileName>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
