@@ -45,6 +45,8 @@
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<RunAOTCompilation>false</RunAOTCompilation>
 		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+		<!-- Name APK File -->
+		<AndroidPackageFileName>map_ulges.apk</AndroidPackageFileName>
 	</PropertyGroup>
 
 	<ItemGroup>
